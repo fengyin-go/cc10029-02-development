@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.metrics_dataset import seed_datasets
 from app.routers import ROUTERS
 from app.store import store
 
@@ -24,6 +25,9 @@ app.add_middleware(
 
 for module in ROUTERS:
     app.include_router(module.router)
+
+# 启动即生成确定性的监控指标数据集样例，页面打开即可看到当前结果
+seed_datasets()
 
 
 @app.get("/api/health")

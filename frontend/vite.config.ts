@@ -20,7 +20,9 @@ export default defineConfig({
     open: false,
     strictPort: false,
     proxy: {
-      '/api': {
+      // 用带边界的正则而不是字符串 '/api'：Vite 内部按 startsWith 匹配，
+      // 字符串键会把 SPA 路由 /apigate（恰好以 /api 开头）也代理到后端导致 404。
+      '^/api(?:/|$)': {
         target: proxyTarget,
         changeOrigin: true,
       },

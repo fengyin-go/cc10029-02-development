@@ -76,6 +76,43 @@
       <span>共 {{ total }} 条告警中心记录</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
     </footer>
+
+    <!-- ============ 告警通知清单：消费运行监控的监控指标数据集 ============ -->
+    <section class="notice-section" data-testid="notice-section">
+      <header class="page-head">
+        <div>
+          <h3>告警通知清单</h3>
+          <p class="page-desc">由运行监控回写的监控指标数据集生成；任务、时段、错误次数与同一份异常时间线保持一致。</p>
+        </div>
+        <button class="btn" type="button" data-testid="notice-reload" @click="reloadNotices">刷新通知清单</button>
+      </header>
+      <form class="filter-bar" @submit.prevent="reloadNotices">
+        <label class="filter-item"><span>关联任务</span>
+          <input v-model="noticeFilters.task" data-testid="notice-filter-task" placeholder="按任务检索" />
+        </label>
+        <label class="filter-item"><span>观测时段</span>
+          <input v-model="noticeFilters.window" data-testid="notice-filter-window" placeholder="如 2026-11-17 09:00" />
+        </label>
+        <button class="btn" data-testid="notice-query" type="submit">查询</button>
+        <button class="btn ghost" data-testid="notice-reset" type="button" @click="resetNoticeFilters">重置条件</button>
+      </form>
+      <table class="data-table" data-testid="notice-table">
+        <thead>
+          <tr>
+            <th v-for="column in noticeColumns" :key="column">{{ column }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in notices" :key="String(row['通知编号'])" :data-testid="`notice-row-${row['通知编号']}`">
+            <td v-for="column in noticeColumns" :key="column">{{ row[column] ?? '—' }}</td>
+          </tr>
+          <tr v-if="!notices.length">
+            <td :colspan="noticeColumns.length" class="empty-state">暂无告警通知，请先在运行监控提交数据集并由告警中心消费</td>
+          </tr>
+        </tbody>
+      </table>
+      <footer class="page-foot"><span>共 {{ noticeTotal }} 条告警通知</span></footer>
+    </section>
   </section>
 </template>
 
@@ -105,6 +142,37 @@ const stats = computed(() => [
   { label: metricNames[1], value: rows.value.filter((row) => row.status === statuses[1]).length },
   { label: metricNames[2], value: rows.value.filter((row) => row.status === statuses[statuses.length - 1]).length },
 ])
+
+// ----- 告警通知清单（监控指标数据集消费结果） -----
+type Notice = Record<string, string | number | boolean | null>
+const noticeColumns = ["通知编号", "数据集编号", "关联任务", "异常开始", "异常结束", "错误次数", "最低成功率", "观测来源", "冲突合并", "版本号"]
+const notices = ref<Notice[]>([])
+const noticeTotal = ref(0)
+const noticeFilters = ref<{ task: string; window: string }>({ task: '', window: '' })
+
+function resetNoticeFilters() {
+  noticeFilters.value = { task: '', window: '' }
+  void reloadNotices()
+}
+
+async function reloadNotices() {
+  const query = new URLSearchParams()
+  if (noticeFilters.value.task) query.set('task', noticeFilters.value.task)
+  if (noticeFilters.value.window) query.set('window', noticeFilters.value.window)
+  try {
+    const response = await request(`${ENDPOINT}/notifications?${query.toString()}`)
+    if (!response.ok) throw new Error('告警通知清单读取失败')
+    const payload = await response.json()
+    notices.value = (payload.items ?? []).map((item: Notice) => ({
+      ...item,
+      '冲突合并': item['冲突合并'] ? '是' : '否',
+    }))
+    noticeTotal.value = payload.total ?? notices.value.length
+  } catch (error) {
+    notices.value = []
+    noticeTotal.value = 0
+  }
+}
 
 function resetFilters() {
   filters.value = {}
@@ -184,5 +252,8 @@ async function reload() {
   }
 }
 
-onMounted(reload)
+onMounted(() => {
+  void reload()
+  void reloadNotices()
+})
 </script>

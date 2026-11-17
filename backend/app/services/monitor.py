@@ -1,9 +1,19 @@
-"""运行监控 分析看板服务：汇总指标、运行分析并生成模拟结果。"""
+"""运行监控 分析看板服务：汇总指标、运行分析，并维护监控指标数据集。
+
+监控指标数据集把采集任务观测值整理成异常时间线；提交、扩展、幂等与并发
+控制统一收口在 app.metrics_dataset，本服务只做参数透传与结果包装。
+"""
 from __future__ import annotations
 
 import random
 from typing import Any
 
+from app.metrics_dataset import (
+    DatasetConflictError,
+    MetricDatasetError,
+    registry,
+    sample_payloads,
+)
 from app.store import store
 
 MODULE = "monitor"
@@ -27,7 +37,7 @@ class MonitorService:
 
     def run_analysis(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         count = int(params.get("样本范围", params.get("并行数量", "6")))
-        results: list[dict] = []
+        results: list[dict[str, Any]] = []
         for i in range(count):
             results.append({
                 "id": i + 1,
@@ -40,3 +50,30 @@ class MonitorService:
 
     def get_entry(self, entry_id: int) -> dict[str, Any] | None:
         return store.find(MODULE, entry_id)
+
+    # ----- 监控指标数据集 ----- #
+    def dataset_overview(self) -> dict[str, Any]:
+        return registry.overview()
+
+    def list_datasets(
+        self, *, task: str | None = None, window: str | None = None,
+        page: int = 1, size: int = 20,
+    ) -> tuple[list[dict[str, Any]], int]:
+        return registry.list_datasets(task=task, window=window, page=page, size=size)
+
+    def get_dataset(self, dataset_id: str) -> dict[str, Any] | None:
+        return registry.get_dataset(dataset_id)
+
+    def commit_dataset(self, payload: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+        try:
+            return registry.commit(payload)
+        except MetricDatasetError:
+            raise
+        except DatasetConflictError:
+            raise
+
+    def sample_payloads(self) -> list[dict[str, Any]]:
+        return sample_payloads()
+
+    def task_options(self) -> list[str]:
+        return registry.tasks()

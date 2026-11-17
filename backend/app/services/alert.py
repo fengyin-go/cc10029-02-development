@@ -1,8 +1,13 @@
-"""告警中心业务规则：状态流转、字段校验与筛选口径都收在这里。"""
+"""告警中心业务规则：状态流转、字段校验、筛选口径与监控指标数据集消费。
+
+告警通知清单只来自运行监控回写的监控指标数据集；通知中的任务、时段、错误次数
+均取自同一份异常时间线，同一数据集重复消费只生成一次通知。
+"""
 from __future__ import annotations
 
 from typing import Any
 
+from app.metrics_dataset import DatasetConflictError, MetricDatasetError, registry
 from app.store import store
 
 MODULE = "alert"
@@ -63,3 +68,21 @@ class AlertService:
         entry["pending"] = target != STATUS_ORDER[-1]
         entry["abnormal"] = action in NEGATIVE_ACTIONS
         return entry, f"告警规则已{action}"
+
+    # ----- 监控指标数据集消费：告警通知清单 ----- #
+    def list_notifications(
+        self, *, task: str | None = None, window: str | None = None,
+        page: int = 1, size: int = 20,
+    ) -> tuple[list[dict[str, Any]], int]:
+        items = registry.notifications(task=task, window=window)
+        total = len(items)
+        start = (page - 1) * size
+        return items[start:start + size], total
+
+    def consume_dataset(self, dataset_id: str) -> dict[str, Any]:
+        try:
+            return registry.consume(dataset_id)
+        except MetricDatasetError:
+            raise
+        except DatasetConflictError:
+            raise

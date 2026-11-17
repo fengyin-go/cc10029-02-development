@@ -7,6 +7,7 @@ import io
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
+from app.metrics_dataset import DatasetConflictError, MetricDatasetError
 from app.schemas import ActionPayload, ActionResult, EntryPayload, PageResult
 from app.services.alert import AlertService
 
@@ -63,6 +64,43 @@ def export_entries(
     return StreamingResponse(
         iter([output.getvalue()]), media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="alert.csv"'})
+
+
+# --------------------------------------------------------------------------- #
+# 告警通知清单：消费运行监控回写的监控指标数据集（同一份异常时间线）
+# --------------------------------------------------------------------------- #
+@router.get("/notifications", response_model=PageResult[dict])
+def list_notifications(
+    task: str | None = Query(default=None, description="按关联任务筛选"),
+    window: str | None = Query(default=None, description="按观测时段筛选"),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=20, ge=1, le=200),
+) -> PageResult[dict]:
+    """通知中的任务、时段、错误次数全部来自监控指标数据集的同一份时间线。"""
+    items, total = service.list_notifications(task=task, window=window, page=page, size=size)
+    return PageResult(items=items, total=total, page=page, size=size)
+
+
+@router.post("/datasets/{dataset_id}/consume", response_model=ActionResult)
+def consume_dataset(dataset_id: str) -> ActionResult:
+    """告警中心显式消费一份监控指标数据集。
+
+    数据集不存在返回 400；重复消费返回 409，告警中心拒绝第二份结果。
+    """
+    try:
+        dataset = service.consume_dataset(dataset_id)
+    except MetricDatasetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except DatasetConflictError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={"message": str(exc), "dataset": exc.dataset},
+        ) from exc
+    return ActionResult(
+        ok=True,
+        message=f"已根据数据集 {dataset_id} 生成告警通知清单（{dataset['异常区间数']} 条异常）",
+        entry=dataset,
+    )
 
 
 @router.get("/{entry_id}", response_model=dict)

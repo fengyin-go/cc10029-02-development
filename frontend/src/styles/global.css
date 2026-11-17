@@ -70,3 +70,27 @@ body { margin: 0; background: #f6f8fb; color: #1f2937; }
 .analysis-chart { display: flex; align-items: flex-end; gap: 8px; height: 160px; padding: 12px 0; }
 .analysis-bar { flex: 1; border-radius: 4px 4px 0 0; background: var(--brand); min-width: 24px; position: relative; transition: height 0.4s; }
 .analysis-bar span { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--muted); white-space: nowrap; }
+/* 监控指标数据集看板 */
+.dataset-section { margin-top: 28px; background: #f6f8fb; border-top: 2px solid var(--border); padding-top: 16px; }
+.dataset-section h3 { margin: 0; }
+.page-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.dataset-message { padding: 8px 12px; border-radius: 6px; background: #ecfdf3; border: 1px solid #abefc6; color: #067647; font-size: 13px; }
+.dataset-message.error-text { background: #fef3f2; border-color: #fda29b; color: #b42318; }
+.dataset-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+.dataset-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.dataset-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.dataset-card-head strong { font-size: 14px; display: block; }
+.dataset-id { font-size: 12px; color: var(--muted); }
+.dataset-window { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.dataset-strip { display: flex; gap: 3px; height: 26px; align-items: stretch; }
+.strip-slot { flex: 1; border-radius: 3px; background: #d1fadf; min-width: 8px; }
+.strip-slot.abnormal { background: #ef4444; }
+.dataset-metrics { display: flex; gap: 16px; margin: 0; }
+.dataset-metrics dt { font-size: 12px; color: var(--muted); }
+.dataset-metrics dd { margin: 2px 0 0; font-size: 16px; font-weight: 600; }
+.modal-wide { width: min(880px, 100%); }
+.json-area { width: 100%; box-sizing: border-box; border: 1px solid var(--border); border-radius: 6px; padding: 8px; font-family: monospace; font-size: 12px; resize: vertical; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.notice-section { margin-top: 28px; border-top: 2px solid var(--border); padding-top: 16px; }
+.notice-section h3 { margin: 0; }
+.notice-section .data-table { margin-top: 8px; }
